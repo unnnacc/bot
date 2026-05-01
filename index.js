@@ -98,7 +98,7 @@ bot.start((ctx) => {
     ])
   );
 });
-// Обработчик кнопки "Оставить заявку"
+// Обработчик кнопи "Оставить заявку"
 bot.action('start_order', async (ctx) => {
   console.log('Callback start_order received'); 
   
