@@ -119,7 +119,6 @@ bot.on('text', async (ctx) => {
   else if (state.step === 'WAITING_FOR_BUDGET') {
     userStates[userId].budget = text;
     userStates[userId].step = 'WAITING_FOR_DESC';
-    await ctx. // reply
     await ctx.reply(TEXTS.order_desc);
   } 
   else if (state.step === 'WAITING_FOR_DESC') {
