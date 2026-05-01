@@ -88,15 +88,16 @@ bot.use(stage);
 
 bot.start((ctx) => {
   const firstName = ctx.from.first_name || 'Друг';
+  
   ctx.reply(
     `${TEXTS.welcome(firstName)} ${TEXTS.instruction}`, 
     Markup.inlineKeyboard([
-      [Markup.button.webApp('💳 Открыть визитку', WEBAPP_URL)],
+      // Заменяем .webApp на .url. Это работает стабильнее всего.
+      [Markup.button.url('💳 Открыть визитку', WEBAPP_URL)], 
       [Markup.button.callback('📝 Оставить заявку', 'start_order')]
     ])
   );
 });
-
 // Обработчик кнопки "Оставить заявку"
 bot.action('start_order', async (ctx) => {
   console.log('Callback start_order received'); 
