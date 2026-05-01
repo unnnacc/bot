@@ -2,16 +2,16 @@ require('dotenv').config();
 const { Telegraf, Markup } = require('telegraf');
 const mongoose = require('mongoose');
 
-// --- ИНИЦИАЛИЗАЦИЯ БОТА ---
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// --- НАСТРОЙКИ (Секреты из Render / .env) ---
+// --- НАСТРОЙКИ ---
 const ADMIN_ID = process.env.ADMIN_ID; 
 const LOG_CHAT_ID = process.env.LOG_CHAT_ID; 
 const MONGO_URI = process.env.MONGO_URI; 
 const WEBAPP_URL = process.env.WEBAPP_URL;
+const BANNER_URL = 'https://cdn.pixabay.com/photo/2021/08/25/1 la-high-tech-6264115_1280.jpg'; // Замените на свое фото/лого
 
-// --- МОДЕЛЬ ДАННЫХ MONGODB ---
+// --- МОДЕЛЬ ДАННЫХ ---
 const OrderSchema = new mongoose.Schema({
   userId: String,
   username: String,
@@ -22,104 +22,97 @@ const OrderSchema = new mongoose.Schema({
 });
 const Order = mongoose.model('Order', OrderSchema);
 
-// Временное хранилище состояний опроса
 const userStates = {}; 
 
-// --- КОНФИГУРАЦИЯ ТЕКСТОВ ---
-const TEXTS = {
-  welcome: (name) => `Привет, ${name}! 👋\n\nДобро пожаловать в мой цифровой крипто-хаб. Здесь собраны все мои актуальные адреса кошельков, ссылки на проекты и контакты.`,
-  instruction: `Нажми на кнопку ниже, чтобы открыть мою интерактивную визитку.`,
-  projects: `Мои текущие проекты:\n\n🚀 *DeFi Ecosystem* — Разработка новых протоколов.\n🌐 *Web3 Portfolio* — Мои работы по блокчейну.\n💎 *NFT Art* — Коллекция цифрового искусства.`,
-  contact: `Связаться со мной:\n\n✈️ Telegram: @allllbuquerque\n📧 Email: unnnacc@gmail.com\n🐙 GitHub: [github.com/unnnacc](https://github.com/unnnacc)`,
-  order_start: `🛠 Давайте обсудим ваш проект!\n\nДля начала напишите, пожалуйста, какой стек технологий вам нужен? (например: React + Node.js или Fullstack)`,
-  order_budget: `💰 Понял. Теперь подскажите примерный бюджет проекта или вилку цен?`,
-  order_desc: `📝 И последнее: опишите задачу максимально подробно. Что именно нужно реализовать?`,
-  order_success: `✅ Ваша заявка отправлена! Я изучу её и свяжусь с вами в ближайшее время.`,
-  error: `Что-то пошло не так. Попробуй использовать команду /start снова.`
+// --- ВИЗУАЛЬНЫЕ КОНСТАНТЫ ---
+const UI = {
+  line: '━━━━━━━━━━━━━━━━━━━━',
+  bullet: '🔹',
+  star: '🌟',
+  check: '✅'
 };
 
-// --- ОБРАБОТКА КОМАНД (Должны быть ВЫШЕ общего обработчика текста) ---
+const TEXTS = {
+  welcome: (name) => `*${UI.star} ПРИВЕТСТВУЮ, ${name.toUpperCase()}! ${UI.star}*\n\nДобро пожаловать в мой цифровой крипто-хаб. Я твой персональный ассистент. Здесь собрано всё: от моих кошельков до профессионального бэкенда.`,
+  main_menu: `Что ты хочешь сделать сейчас? Выбери вариант в меню ниже:`,
+  projects: `*${UI.star} МОИ ПРОЕКТЫ ${UI.star}*\n${UI.line}\n\n${UI.bullet} *DeFi Ecosystem* — Разработка инновационных протоколов.\n${UI.bullet} *Web3 Portfolio* — Кейсы по блокчейну и смарт-контрактам.\n${UI.bullet} *NFT Art* — Коллекция цифрового искусства.\n\n${UI.line}\n_Все проекты созданы с применением современных Fullstack технологий._`,
+  contact: `*${UI.star} КОНТАКТЫ ${UI.star}*\n${UI.line}\n\n✈️ *Telegram:* @allllbuquerque\n📧 *Email:* unnnacc@gmail.com\n🐙 *GitHub:* [github.com/unnnacc](https://github.com/unnnacc)\n\n${UI.line}\n_Пишите, буду рад сотрудничеству!_`,
+  order_start: `🛠 *ЗАЯВКА НА РАЗРАБОТКУ*\n${UI.line}\n\nДля начала напишите, пожалуйста, какой *стек технологий* вам нужен? (например: React + Node.js)`,
+  order_budget: `💰 *БЮДЖЕТ*\n${UI.line}\n\nПодскажите примерный бюджет проекта или вилку цен?`,
+  order_desc: `📝 *ДЕТАЛИ ЗАДАЧИ*\n${UI.line}\n\nОпишите задачу максимально подробно. Что именно нужно реализовать?`,
+  order_success: `*${UI.check} ЗАЯВКА ПРИНЯТА!*\n\nЯ получил все данные и приступлю к изучению. Свяжусь с вами в ближайшее время!`,
+};
 
-bot.start((ctx) => {
+// --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
+const sendMainMenu = (ctx) => {
+  return ctx.reply(TEXTS.main_menu, Markup.inlineKeyboard([
+    [Markup.button.url('💳 Моя Визитка', WEBAPP_URL)],
+    [Markup.button.callback('🚀 Мои проекты', 'show_projects'), Markup.button.callback('✉️ Контакты', 'show_contacts')],
+    [Markup.button.callback('📝 Оставить заявку', 'start_order')]
+  ]));
+};
+
+// --- ОБРАБОТКА КОМАНД ---
+
+bot.start(async (ctx) => {
   const firstName = ctx.from.first_name || 'Друг';
-  ctx.reply(
-    `${TEXTS.welcome(firstName)} ${TEXTS.instruction}`, 
-    Markup.inlineKeyboard([
-      [Markup.button.url('💳 Открыть визитку', WEBAPP_URL)],
-      [Markup.button.callback('📝 Оставить заявку', 'start_order')]
-    ])
-  );
-});
-
-bot.command('projects', (ctx) => {
-  ctx.reply(TEXTS.projects, { parse_mode: 'Markdown' });
-});
-
-bot.command('contact', (ctx) => {
-  ctx.reply(TEXTS.contact, { parse_mode: 'Markdown' });
-});
-
-// Админ-команда: Рассылка
-bot.command('broadcast', async (ctx) => {
-  if (ctx.from.id.toString() !== ADMIN_ID) return;
-  const message = ctx.message.text.replace('/broadcast ', '');
-  if (!message) return ctx.reply('Введите текст рассылки: /broadcast Привет всем!');
   
-  try {
-    const users = await Order.distinct('userId'); 
-    let count = 0;
-    for (const userId of users) {
-      try { await bot.telegram.sendMessage(userId, message); count++; } catch (e) {}
-    }
-    ctx.reply(`✅ Рассылка завершена. Получили ${count} пользователей.`);
-  } catch (e) {
-    ctx.reply('Ошибка при выполнении рассылки.');
-  }
+  // Отправляем красивый баннер
+  await ctx.sendPhoto(BANNER_URL, { 
+    caption: `${TEXTS.welcome(firstName)}`, 
+    parse_mode: 'Markdown' 
+  });
+  
+  // Сразу под баннером выводим меню
+  await sendMainMenu(ctx);
 });
 
-// Админ-команда: Статистика
-bot.command('stats', async (ctx) => {
-  if (ctx.from.id.toString() !== ADMIN_ID) return;
-  try {
-    const total = await Order.countDocuments();
-    ctx.reply(`📊 Всего заявок в базе: ${total}`);
-  } catch (e) {
-    ctx.reply('Ошибка при получении статистики.');
-  }
+// Обработка кнопок меню
+bot.action('show_projects', (ctx) => {
+  ctx.reply(TEXTS.projects, { parse_mode: 'Markdown' });
+  ctx.answerCbQuery(); // Убирает «часики» на кнопке
 });
 
-// Обработчик кнопки "Оставить заявку" (Запуск опроса)
+bot.action('show_contacts', (ctx) => {
+  ctx.reply(TEXTS.contact, { parse_mode: 'Markdown' });
+  ctx.answerCbQuery();
+});
+
 bot.action('start_order', async (ctx) => {
   const userId = ctx.from.id.toString();
   userStates[userId] = { step: 'WAITING_FOR_STACK' };
-  await ctx.reply(TEXTS.order_start);
+  await ctx.reply(TEXTS.order_start, { parse_mode: 'Markdown' });
+  ctx.answerCbQuery();
 });
 
-// --- ГЛАВНЫЙ ОБРАБОТЧИК СООБЩЕНИЙ (Логика состояний) ---
+// --- ЛОГИКА ОПРОСА (State Machine) ---
 bot.on('text', async (ctx) => {
   const userId = ctx.from.id.toString();
   const text = ctx.message.text;
 
-  // Если сообщение начинается со слэша, игнорируем его здесь (чтобы сработали команды выше)
   if (text.startsWith('/')) return;
+
+  // ПАСХАЛКИ
+  const greetings = ['привет', 'hi', 'hello', 'хай'];
+  if (greetings.includes(text.toLowerCase())) {
+    return ctx.reply('Привет! 🖖 Я вижу, ты настроен на общение. Чтобы перейти к делу, используй /start');
+  }
 
   const state = userStates[userId];
 
-  // Если пользователь НЕ в режиме опроса
   if (!state) {
-    return ctx.reply('Я пока только учусь! 🤖\n\nИспользуй /start чтобы открыть мою визитку, или /projects и /contact для быстрой информации.');
+    return ctx.reply('Я пока только учусь! 🤖\n\nИспользуй /start чтобы открыть главное меню.');
   }
 
-  // ЛОГИКА ОПРОСА
   if (state.step === 'WAITING_FOR_STACK') {
     userStates[userId].stack = text;
     userStates[userId].step = 'WAITING_FOR_BUDGET';
-    await ctx.reply(TEXTS.order_budget);
+    await ctx.reply(TEXTS.order_budget, { parse_mode: 'Markdown' });
   } 
   else if (state.step === 'WAITING_FOR_BUDGET') {
     userStates[userId].budget = text;
     userStates[userId].step = 'WAITING_FOR_DESC';
-    await ctx.reply(TEXTS.order_desc);
+    await ctx.reply(TEXTS.order_desc, { parse_mode: 'Markdown' });
   } 
   else if (state.step === 'WAITING_FOR_DESC') {
     const finalData = {
@@ -132,40 +125,53 @@ bot.on('text', async (ctx) => {
 
     try {
       await Order.create(finalData);
-      const logMessage = `📦 *НОВАЯ ЗАЯВКА!*\n\n👤 @${finalData.username} [${finalData.userId}]\n🛠 Стек: ${finalData.stack}\n💰 Бюджет: ${finalData.budget}\n📝 Описание: ${finalData.description}`;
+      const logMessage = `📦 *НОВАЯ ЗАЯВКА!*\n${UI.line}\n\n` +
+        `👤 *Клиент:* @${finalData.username}\n` +
+        `🛠 *Стек:* ${finalData.stack}\n` +
+        `💰 *Бюджет:* ${finalData.budget}\n` +
+        `📝 *Описание:* ${finalData.description}\n\n` +
+        `${UI.line}\n_Заявка сохранена в БД_`;
+      
       await ctx.telegram.sendMessage(LOG_CHAT_ID, logMessage, { parse_mode: 'Markdown' });
-      await ctx.reply(TEXTS.order_success);
+      await ctx.reply(TEXTS.order_success, { parse_mode: 'Markdown' });
     } catch (e) {
-      console.error('DB Error:', e);
+      console.error(e);
       await ctx.reply('Ошибка при сохранении заявки.');
     }
-    delete userStates[userId]; // Завершаем опрос, удаляя состояние
+    delete userStates[userId];
   }
 });
 
-// --- ЗАПУСК СЕРВЕРА И БОТА ---
+// --- АДМИНКА ---
+bot.command('broadcast', async (ctx) => {
+  if (ctx.from.id.toString() !== ADMIN_ID) return;
+  const message = ctx.message.text.replace('/broadcast ', '');
+  if (!message) return ctx.reply('Введите текст рассылки.');
+  const users = await Order.distinct('userId'); 
+  let count = 0;
+  for (const id of users) { try { await bot.telegram.sendMessage(id, message); count++; } catch (e) {} }
+  ctx.reply(`✅ Рассылка завершена. Получили ${count} пользователей.`);
+});
 
+bot.command('stats', async (ctx) => {
+  if (ctx.from.id.toString() !== ADMIN_ID) return;
+  const total = await Order.countDocuments();
+  ctx.reply(`📊 Всего заявок в базе: ${total}`);
+});
+
+// --- ЗАПУСК ---
 mongoose.connect(MONGO_URI)
   .then(() => {
-    console.log('✅ Connected to MongoDB Atlas');
-    bot.launch()
-      .then(() => console.log('🚀 Bot is online and listening!'))
-      .catch((err) => console.error('Bot launch error:', err));
+    console.log('✅ MongoDB Connected');
+    bot.launch().then(() => console.log('🚀 Bot Online!'));
   })
-  .catch(err => {
-    console.error('❌ MongoDB Connection Error:', err);
-    process.exit(1);
-  });
+  .catch(err => { console.error('❌ DB Error:', err); process.exit(1); });
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
 
-// HTTP Сервер для Render (чтобы избежать Instance Failed)
 const http = require('http');
 const port = process.env.PORT || 8080;
-http.createServer((req, res) => {
-  res.writeHead(200);
-  res.end('Bot is running!');
-}).listen(port, () => {
+http.createServer((req, res) => { res.writeHead(200); res.end('OK'); }).listen(port, () => {
   console.log(`Server listening on port ${port}`);
 });
