@@ -2,8 +2,52 @@ require('dotenv').config();
 const { Telegraf, Markup, Scenes } = require('telegraf');
 const mongoose = require('mongoose');
 
-// --- ИНИЦИАЛИЗАЦИЯ БОТА ---
+// 1. Инициализация бота
 const bot = new Telegraf(process.env.BOT_TOKEN);
+
+// 2. СРАЗУ создаем и подключаем стейдж (Stage)
+// Переносим определение orderScene сюда, чтобы stage создавался немедленно
+const orderScene = new Scenes.WizardScene(
+  'ORDER_SCENE',
+  async (ctx) => {
+    await ctx.reply(TEXTS.order_start);
+    return await ctx.wizard.next();
+  },
+  async (ctx) => {
+    ctx.wizard.state.stack = ctx.message.text;
+    await ctx.reply(TEXTS.order_budget);
+    return await ctx.wizard.next();
+  },
+  async (ctx) => {
+    ctx.wizard.state.budget = ctx.message.text;
+    await ctx.reply(TEXTS.order_desc);
+    return await ctx.wizard.next();
+  },
+  async (ctx) => {
+    const orderData = {
+      userId: ctx.from.id.toString(),
+      username: ctx.from.username || 'no_username',
+      stack: ctx.wizard.state.stack,
+      budget: ctx.wizard.state.budget,
+      description: ctx.message.text,
+    };
+    try {
+      await Order.create(orderData);
+      const logMessage = `📦 *НОВАЯ ЗАЯВКА!*\n\n👤 Пользователь: @${orderData.username} [${orderData.userId}]\n🛠 Стек: ${orderData.stack}\n💰 Бюджет: ${orderData.budget}\n📝 Описание: ${orderData.description}`;
+      await ctx.telegram.sendMessage(LOG_CHAT_ID, logMessage, { parse_mode: 'Markdown' });
+      await ctx.reply(TEXTS.order_success);
+    } catch (error) {
+      console.error('Error:', error);
+      await ctx.reply('Ошибка при сохранении.');
+    }
+    return await ctx.scene.leave();
+  }
+);
+
+const stage = new Scenes.Stage([orderScene]);
+bot.use(stage); // Теперь это гарантированно первое, что видит бот
+
+// --- Остальной код (Настройки, Тексты, Команды) идет НИЖЕ ---
 
 // --- НАСТРОЙКИ (Секреты берутся из Render / .env) ---
 const ADMIN_ID = process.env.ADMIN_ID; 
