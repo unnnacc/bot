@@ -55,15 +55,22 @@ const sendMainMenu = (ctx) => {
 // --- ОБРАБОТКА КОМАНД ---
 
 bot.start(async (ctx) => {
-  const firstName = ctx.from.first_name || 'Друг';
+  const firstName = ctx.// first_name
+  const firstName_fixed = ctx.from.first_name || 'Друг';
   
-  // Отправляем красивый баннер
-  await ctx.sendPhoto(BANNER_URL, { 
-    caption: `${TEXTS.welcome(firstName)}`, 
-    parse_mode: 'Markdown' 
-  });
+  try {
+    // Пробуем отправить фото
+    await ctx.sendPhoto(BANNER_URL, { 
+      caption: `${TEXTS.welcome(firstName_fixed)}`, 
+      parse_mode: 'Markdown' 
+    });
+  } catch (e) {
+    console.error('Ошибка при отправке баннера, отправляем только текст:', e.message);
+    // Если фото не отправилось, присылаем приветствие текстом, чтобы пользователь не видел тишины
+    await ctx.reply(`${TEXTS.welcome(firstName_fixed)}`, { parse_mode: 'Markdown' });
+  }
   
-  // Сразу под баннером выводим меню
+  // Меню отправляется в любом случае, даже если фото упало
   await sendMainMenu(ctx);
 });
 
