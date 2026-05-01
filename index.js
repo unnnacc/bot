@@ -7,7 +7,7 @@ const TEXTS = {
   welcome: (name) => `Привет, ${name}! 👋\n\nДобро пожаловать в мой цифровой крипто-хаб. Здесь собраны все мои актуальные адреса кошельков, ссылки на проекты и контакты.`,
   instruction: `Нажми на кнопку ниже, чтобы открыть мою интерактивную визитку.`,
   projects: `Мои текущие проекты:\n\n🚀 DeFi Ecosystem — Разработка новых протоколов.\n🌐 Web3 Portfolio — Мои работы по блокчейну.\n💎 NFT Art — Коллекция цифрового искусства.`,
-  contact: `Связаться со мной:\n\n✈️ Telegram: @allllbuquerque\n📧 Email: your@email.com\n🐙 GitHub: github.com/ваш_ник`,
+  contact: `Связаться со мной:\n\n✈️ Telegram: @allllbuquerque\n📧 Email: unnnacc@gmail.com\n🐙 GitHub: github.com/unnnacc`,
   error: `Что-то пошло не так. Попробуй использовать команду /start снова.`
 };
 
