@@ -97,12 +97,21 @@ bot.start((ctx) => {
   );
 });
 
+// Обработчик кнопки "Оставить заявку"
 bot.action('start_order', async (ctx) => {
-  try {
-    await ctx.scene.enter('ORDER_SCENE');
-  } catch (e) {
-    console.error('Scene Error:', e);
-    await ctx.reply('Ошибка запуска. Попробуйте снова.');
+  console.log('Callback start_order received'); 
+  
+  // Проверяем, подключены ли сцены к контексту
+  if (ctx.scene) {
+    try {
+      await ctx.scene.enter('ORDER_SCENE');
+    } catch (e) {
+      console.error('Scene enter error:', e);
+      await ctx.reply('Ошибка при запуске опроса. Попробуйте снова.');
+    }
+  } else {
+    console.error('CRITICAL: Scenes are not registered in the bot!');
+    await ctx.reply('Ошибка: Система опроса не инициализирована. Пожалуйста, свяжитесь с администратором.');
   }
 });
 
